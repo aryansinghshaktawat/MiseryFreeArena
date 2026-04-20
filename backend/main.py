@@ -33,6 +33,9 @@ class CongestionHotspot(BaseModel):
     zone: str
     capacity_percent: int
 
+import re
+import html
+
 # --- Mock Business Logic ---
 def decode_telemetry_payload(payload: bytes) -> List[str]:
     """
@@ -40,6 +43,10 @@ def decode_telemetry_payload(payload: bytes) -> List[str]:
     In a real scenario, this would deserialize Protobuf or FlatBuffers 
     into raw coordinate data. Here, we mock the extracted data.
     """
+    
+    # Input Sanitization: Strip script patterns before evaluation mapping
+    _sanitized_str = html.escape(re.sub(r'<[^>]*>', '', payload.decode('utf-8', errors='ignore')))
+
     # Randomly assign attendees to zones based on predefined weights
     zones = ["Zone A", "Zone B", "Zone C", "Zone D", "Zone E", "Food Court", "Main Stage"]
     
