@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type CongestionHotspot = {
@@ -26,7 +26,7 @@ const FORENSIC_LOGS = [
   "Pattern Match: Evacuation clear"
 ];
 
-// Aesthetic/Intelligence Helpers (Cyan, Amber, Pulse-Red)
+// Pure Aesthetic/Intelligence Helpers
 function getCongestionColorMap(percent: number) {
   if (percent < 60) {
     return {
@@ -61,19 +61,18 @@ function getGridlockText(percent: number) {
   return "CRITICAL / 0m";
 }
 
-// Simulates forensic analysis of audio decibel frequencies and social pings
 function getSentiment(percent: number) {
   if (percent < 50) return "Mood: Calm";
   if (percent < 75) return "Mood: Anticipatory";
   return "Mood: Anxious";
 }
 
-// 3D Parallax Card Wrapper with Framer Motion liquid transitions
-function GlassTiltCard({ children, percent, ...props }: any) {
+// 3D Parallax Card Wrapper (Memoized for performance)
+const GlassTiltCard = ({ children, percent, ...props }: any) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const width = rect.width;
@@ -83,25 +82,25 @@ function GlassTiltCard({ children, percent, ...props }: any) {
     const mouseX = e.clientX - centerX;
     const mouseY = e.clientY - centerY;
     
-    // Calculate rotation
+    // Hardware-accelerated transformation ranges
     const rotateY = (mouseX / (width / 2)) * 6;
     const rotateX = -(mouseY / (height / 2)) * 6;
     
     setRotation({ x: rotateX, y: rotateY });
-  };
+  }, []);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setRotation({ x: 0, y: 0 });
-  };
+  }, []);
 
-  const colorMap = getCongestionColorMap(percent);
+  const colorMap = useMemo(() => getCongestionColorMap(percent), [percent]);
 
   return (
     <div 
       className="perspective-1000 w-full h-full"
       style={{ perspective: "1000px" }}
     >
-      <motion.div
+      <motion.article
         ref={cardRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -122,16 +121,15 @@ function GlassTiltCard({ children, percent, ...props }: any) {
         className="relative overflow-hidden rounded-2xl border backdrop-blur-[25px] p-6 transform-gpu"
         {...props}
       >
-        {/* Inner Glare / Liquid effect */}
         <div 
           className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none transition-opacity duration-500" 
           style={{ opacity: (Math.abs(rotation.x) + Math.abs(rotation.y)) > 0 ? 1 : 0.5 }}
         ></div>
         {children}
-      </motion.div>
+      </motion.article>
     </div>
   );
-}
+};
 
 export default function StadiumDashboard() {
   const [data, setData] = useState<CongestionHotspot[]>([]);
@@ -139,7 +137,7 @@ export default function StadiumDashboard() {
   const [autoPilot, setAutoPilot] = useState<boolean>(false);
   const [forensicLogs, setForensicLogs] = useState<{id: number, time: string, text: string}[]>([]);
 
-  // Telemetry Fetching
+  // Telemetry Fetching Logic
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -161,7 +159,7 @@ export default function StadiumDashboard() {
       }
     };
 
-    fetchData(); // Initial fetch
+    fetchData(); // Initial boundary fetch
     const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -176,7 +174,7 @@ export default function StadiumDashboard() {
         
         setForensicLogs(prev => {
           const updated = [{ id: Date.now(), time: timeStr, text }, ...prev];
-          return updated.slice(0, 8); // Keep last 8 logs in memory
+          return updated.slice(0, 8); // Performance bounding
         });
       }
     };
@@ -185,22 +183,21 @@ export default function StadiumDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const getZoneData = (zoneName: string) => {
+  // Memoized zone access and calculations
+  const getZoneData = useCallback((zoneName: string) => {
     let zoneObj = data.find((d) => d.zone === zoneName) || { zone: zoneName, capacity_percent: 0 };
     if (autoPilot && zoneName === "Zone D") {
-      zoneObj = { ...zoneObj, capacity_percent: 95 }; // Force Zone D for Hack2Skill Demo
+      zoneObj = { ...zoneObj, capacity_percent: 95 }; 
     }
     return zoneObj;
-  };
+  }, [data, autoPilot]);
 
-  const getSafestZone = () => {
+  const safestZone = useMemo(() => {
     if (!data.length) return "Zone A";
     return data.filter(d => ZONES.includes(d.zone)).reduce((prev, curr) => 
       (prev.capacity_percent < curr.capacity_percent) ? prev : curr
     ).zone;
-  };
-
-  const safestZone = getSafestZone();
+  }, [data]);
 
   return (
     <div className="min-h-screen bg-[#050508] text-neutral-100 font-sans flex flex-col items-center py-6 px-4 sm:px-8 overflow-x-hidden relative">
@@ -214,8 +211,8 @@ export default function StadiumDashboard() {
         {/* Main Interface Group */}
         <div className="flex-1 flex flex-col gap-6">
           
-          {/* Header Ribbon & AI Brief */}
-          <div className="flex flex-col border border-white/10 bg-[#0a0a10]/50 backdrop-blur-[25px] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+          {/* Header Ribbon */}
+          <header className="flex flex-col border border-white/10 bg-[#0a0a10]/50 backdrop-blur-[25px] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)]">
             
             <div className="flex flex-col lg:flex-row items-center justify-between p-6 border-b border-white/5 relative">
               <div className="flex flex-col items-center lg:items-start mb-4 lg:mb-0">
@@ -227,7 +224,7 @@ export default function StadiumDashboard() {
                 </p>
               </div>
               
-              <div className="flex flex-wrap justify-center lg:justify-end gap-3 mt-4 lg:mt-0">
+              <div className="flex flex-wrap justify-center lg:justify-end gap-3 mt-4 lg:mt-0" role="group" aria-label="System Metrics and Controls">
                 <div className="flex items-center gap-2 bg-black/60 border border-white/10 rounded-lg px-4 py-2 backdrop-blur-md">
                    <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Net Efficiency</span>
                    <span className="text-[#00f2ff] font-mono text-xs tracking-wide shadow-[#00f2ff]">90% EFFICIENT</span>
@@ -236,32 +233,35 @@ export default function StadiumDashboard() {
                    <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Packet Size</span>
                    <span className="text-amber-400 font-mono text-xs tracking-wide">48-BYTE</span>
                 </div>
-                <div 
-                  className="flex items-center gap-3 bg-black/70 border border-[#00f2ff]/30 rounded-lg px-5 py-2 backdrop-blur-md cursor-pointer hover:bg-white/5 transition-colors shadow-[0_0_15px_rgba(0,242,255,0.15)]" 
+                
+                {/* Accessible Toggle Button */}
+                <button 
+                  aria-pressed={autoPilot}
+                  aria-label="Toggle AI Router Autopilot"
+                  className="flex items-center gap-3 bg-black/70 border border-[#00f2ff]/30 rounded-lg px-5 py-2 backdrop-blur-md cursor-pointer hover:bg-white/5 transition-colors shadow-[0_0_15px_rgba(0,242,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#00f2ff]" 
                   onClick={() => setAutoPilot(!autoPilot)}
                 >
                   <span className="text-xs text-[#00f2ff] uppercase tracking-widest font-mono font-bold select-none drop-shadow-[0_0_5px_#00f2ff]">AI Router</span>
-                  <button className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${autoPilot ? 'bg-[#00f2ff] shadow-[0_0_10px_#00f2ff]' : 'bg-neutral-800'}`}>
+                  <div className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${autoPilot ? 'bg-[#00f2ff] shadow-[0_0_10px_#00f2ff]' : 'bg-neutral-800'}`}>
                     <div className={`w-3.5 h-3.5 rounded-full bg-white absolute transition-all duration-300 ${autoPilot ? 'left-[22px] shadow-[0_0_8px_white]' : 'left-1'}`} />
-                  </button>
-                </div>
+                  </div>
+                </button>
               </div>
             </div>
             
-            {/* Live Synchronizarion Status */}
             <div className="bg-black/40 px-6 py-2.5 flex items-center justify-between border-b-2 border-transparent">
                <div className="flex items-center gap-3">
-                 <div className="w-2 h-2 rounded-full bg-[#00f2ff] animate-pulse shadow-[0_0_10px_#00f2ff]"></div>
+                 <div className="w-2 h-2 rounded-full bg-[#00f2ff] animate-pulse shadow-[0_0_10px_#00f2ff]" aria-hidden="true"></div>
                  <span className="text-[10px] text-[#00f2ff]/80 uppercase tracking-widest font-mono font-bold">Forensic Grid Online</span>
                </div>
                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
                   SYS.SYNC / {lastUpdate ? lastUpdate.toLocaleTimeString() : 'CONNECTING...'}
                </span>
             </div>
-          </div>
+          </header>
 
-          {/* Zones Grid Component (Now 2 columns or 3 columns based on layout) */}
-          <main className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Zones Grid */}
+          <main className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Venues and Zones Overview">
             {ZONES.map((zone) => {
               const zoneData = getZoneData(zone);
               const percent = zoneData.capacity_percent;
@@ -270,15 +270,16 @@ export default function StadiumDashboard() {
               const colorMap = getCongestionColorMap(percent);
               
               return (
-                <GlassTiltCard key={zone} percent={percent}>
+                <GlassTiltCard key={zone} percent={percent} aria-label={`${zone} capacity at ${percent} percent`}>
                   
                   {/* Top Badges */}
-                  <div className="flex justify-between items-start mb-6">
+                  <header className="flex justify-between items-start mb-6">
                     <motion.div 
                       layout
                       className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded border border-white/5 backdrop-blur-xl"
+                      aria-label={getSentiment(percent)}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colorMap.text} strokeWidth="2" className="mr-1 drop-shadow-md">
+                      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colorMap.text} strokeWidth="2" className="mr-1 drop-shadow-md">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2" />
                       </svg>
                       <span className="text-[9px] font-mono tracking-widest uppercase text-neutral-400">
@@ -291,17 +292,18 @@ export default function StadiumDashboard() {
                         VOL: {percent}%
                       </span>
                       <motion.div 
+                        aria-hidden="true"
                         animate={{ backgroundColor: colorMap.bar, boxShadow: `0 0 10px ${colorMap.bar}` }}
                         className={`w-2 h-2 rounded-full ${isCritical ? 'animate-pulse' : ''}`} 
                       />
                     </div>
-                  </div>
+                  </header>
                   
                   {/* Middle Content */}
                   <div className="relative z-10 flex flex-col pointer-events-none mb-2">
                     <h2 className="text-2xl font-black tracking-[0.1em] mb-1 text-white uppercase font-sans drop-shadow-md">{zone}</h2>
 
-                    <div className="flex flex-col mt-3">
+                    <div className="flex flex-col mt-3" aria-label={`Estimated ${getGridlockText(percent)}`}>
                       <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono mb-1">Time to Gridlock</span>
                       <motion.span 
                         animate={{ color: colorMap.text, textShadow: `0 0 20px ${colorMap.shadow}` }}
@@ -314,7 +316,6 @@ export default function StadiumDashboard() {
                     </div>
                   </div>
 
-                  {/* INCENTIVIZED REROUTING SYSTEM (NUDGE) wrapper with framer layout */}
                   <AnimatePresence>
                     {isRerouting && (
                       <motion.div 
@@ -323,6 +324,7 @@ export default function StadiumDashboard() {
                         exit={{ opacity: 0, height: 0, y: 10 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
                         className="mt-4 rounded-xl border border-rose-500/50 bg-black/50 backdrop-blur-xl shadow-[0_0_25px_rgba(225,29,72,0.2)] overflow-hidden"
+                        role="alert"
                       >
                          <div className="bg-rose-950/80 px-4 py-2 border-b border-rose-500/30 flex justify-between items-center">
                            <span className="text-[10px] font-mono font-bold text-rose-200 uppercase tracking-widest">
@@ -333,12 +335,11 @@ export default function StadiumDashboard() {
                          
                          <div className="p-3">
                             <div className="flex items-center text-[#00f2ff] font-black text-xl drop-shadow-[0_0_10px_#00f2ff] mb-2 justify-between">
-                               <span className="text-xs font-mono text-rose-300 line-through opacity-80 uppercase">{zone}</span>
-                               <span className="text-xl mx-2 font-sans">➔</span>
+                               <span className="text-xs font-mono text-rose-300 line-through opacity-80 uppercase" aria-label={`Route closed to ${zone}`}>{zone}</span>
+                               <span className="text-xl mx-2 font-sans" aria-hidden="true">➔</span>
                                <span className="text-sm font-mono text-[#00f2ff] uppercase bg-[#00f2ff]/10 px-2 border border-[#00f2ff]/30 py-1 rounded">DIVERT TO {safestZone}</span>
                             </div>
                             
-                            {/* Behavioral Nudge */}
                             <div className="bg-amber-500/10 border border-amber-500/30 rounded p-2 flex items-center justify-center">
                               <span className="text-xs font-mono font-bold text-amber-400 whitespace-pre-wrap text-center drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">
                                 🎫 INCENTIVE ACTIVE: Use {safestZone} for 20% off merch!
@@ -349,8 +350,8 @@ export default function StadiumDashboard() {
                     )}
                   </AnimatePresence>
                   
-                  {/* Progress Bar (Liquid with Framer) */}
-                  <div className={`w-full bg-black/50 rounded-full h-1.5 overflow-hidden border border-white/5 relative z-10 box-content ${isRerouting ? 'mt-4' : 'mt-8'}`}>
+                  {/* Progress Bar (Liquid) */}
+                  <div className={`w-full bg-black/50 rounded-full h-1.5 overflow-hidden border border-white/5 relative z-10 box-content ${isRerouting ? 'mt-4' : 'mt-8'}`} aria-hidden="true">
                     <motion.div 
                       layout
                       animate={{ 
@@ -363,8 +364,7 @@ export default function StadiumDashboard() {
                     ></motion.div>
                   </div>
                   
-                  {/* Card ambient decoration */}
-                  <div className="absolute -bottom-8 -right-4 opacity-[0.03] font-mono text-[160px] leading-none select-none pointer-events-none font-black text-white mix-blend-overlay">
+                  <div className="absolute -bottom-8 -right-4 opacity-[0.03] font-mono text-[160px] leading-none select-none pointer-events-none font-black text-white mix-blend-overlay" aria-hidden="true">
                     {percent}
                   </div>
                 </GlassTiltCard>
@@ -374,21 +374,21 @@ export default function StadiumDashboard() {
         </div>
 
         {/* RIGHT SIDEBAR: LIVE FORENSIC AUDIT */}
-        <div className="w-full xl:w-96 flex flex-col border border-white/10 bg-[#0a0a10]/50 backdrop-blur-[25px] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)] h-[600px] xl:h-auto z-10 shrink-0">
-          <div className="bg-[#0a0a10] border-b border-white/10 px-6 py-5 flex items-center justify-between">
+        <aside className="w-full xl:w-96 flex flex-col border border-white/10 bg-[#0a0a10]/50 backdrop-blur-[25px] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)] h-[600px] xl:h-auto z-10 shrink-0" aria-label="Live Forensic Audit Feed">
+          <header className="bg-[#0a0a10] border-b border-white/10 px-6 py-5 flex items-center justify-between">
              <div className="flex items-center gap-3">
-               <div className="w-2.5 h-2.5 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center shadow-[0_0_10px_rgba(225,29,72,0.8)] relative">
+               <div className="w-2.5 h-2.5 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center shadow-[0_0_10px_rgba(225,29,72,0.8)] relative" aria-hidden="true">
                   <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping absolute"></div>
                   <div className="w-1 h-1 rounded-full bg-white z-10"></div>
                </div>
                <span className="text-xs font-mono font-bold text-white tracking-[0.25em] uppercase drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">LIVE FORENSIC AUDIT</span>
              </div>
-          </div>
+          </header>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 relative bg-black/20" style={{ scrollbarWidth: 'none' }}>
-            <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a10] to-transparent z-10"></div>
+            <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#0a0a10] to-transparent z-10" aria-hidden="true"></div>
             
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" role="log" aria-live="polite">
               <AnimatePresence>
                 {forensicLogs.map((log) => (
                   <motion.div 
@@ -413,12 +413,13 @@ export default function StadiumDashboard() {
               
               {!forensicLogs.length && (
                 <div className="flex justify-center py-10 opacity-50">
-                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#00f2ff]"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-[#00f2ff]" aria-hidden="true"></div>
+                  <span className="sr-only">Loading audits</span>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </aside>
 
       </div>
 

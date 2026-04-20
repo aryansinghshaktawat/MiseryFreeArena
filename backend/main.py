@@ -12,12 +12,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS constraints for specific frontend origins
+import os
+
+# Configure CORS constraints for specific production and local origins
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:3000,https://miseryfreearena.vercel.app"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # This is the magic line
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -90,6 +97,10 @@ async def ingest_telemetry(request: Request):
         # Read the raw binary payload
         raw_payload = await request.body()
         
+        # Validation: Ensure payload size is not malicious
+        if not raw_payload or len(raw_payload) > 1024 * 1024:
+             raise HTTPException(status_code=422, detail="Invalid telemetry payload size.")
+        
         # 1. Decode the binary payload into raw mock data
         attendee_data = decode_telemetry_payload(raw_payload)
         
@@ -97,6 +108,8 @@ async def ingest_telemetry(request: Request):
         hotspots = aggregate_hotspots(attendee_data)
         
         return hotspots
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process telemetry: {str(e)}")
 
