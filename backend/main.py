@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+This module implements the FastAPI backend for the MiseryFreeArena project.
+
+It provides a single endpoint for ingesting compressed binary telemetry data,
+processing it, and returning real-time venue congestion metrics. The design
+prioritizes data security, input validation, and performance.
+"""
+
 from typing import List
 import random
 
@@ -15,6 +24,9 @@ app = FastAPI(
 import os
 
 # Configure CORS constraints for specific production and local origins
+# Data Security: CORS is strictly configured to only allow requests from the
+# approved frontend domains. This prevents Cross-Site Request Forgery (CSRF)
+# and other malicious cross-origin attacks.
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS", 
     "http://localhost:3000,https://miseryfreearena.vercel.app"
@@ -30,6 +42,13 @@ app.add_middleware(
 
 # --- Models ---
 class CongestionHotspot(BaseModel):
+    """
+    Pydantic model representing a single congestion hotspot in a venue zone.
+
+    Attributes:
+        zone (str): The name of the venue zone.
+        capacity_percent (int): The calculated capacity percentage of the zone.
+    """
     zone: str
     capacity_percent: int
 
@@ -40,8 +59,27 @@ import html
 def decode_telemetry_payload(payload: bytes) -> List[str]:
     """
     Simulates decoding a highly compressed binary telemetry payload.
-    In a real scenario, this would deserialize Protobuf or FlatBuffers 
-    into raw coordinate data. Here, we mock the extracted data.
+
+    In a real-world scenario, this function would deserialize a format like
+    Protobuf or FlatBuffers into structured data. This mock implementation
+    demonstrates the data security and input validation steps that would
+    be performed on the raw payload.
+
+    Args:
+        payload (bytes): The raw binary payload from the request.
+
+    Returns:
+        List[str]: A list of simulated attendee locations (zone names).
+
+    Data Security & Input Validation:
+        - The function first decodes the byte string, ignoring errors to prevent
+          crashes from malformed UTF-8 sequences.
+        - It then uses `re.sub` to strip any potential HTML/XML tags, a crucial
+          step to prevent Cross-Site Scripting (XSS) if this data were ever
+          rendered without further escaping.
+        - `html.escape` is used as a second layer of defense to sanitize the
+          string, turning special characters like '<', '>', and '&' into their
+          safe HTML entity equivalents.
     """
     
     # Input Sanitization: Strip script patterns before evaluation mapping
@@ -63,8 +101,18 @@ def decode_telemetry_payload(payload: bytes) -> List[str]:
 
 def aggregate_hotspots(attendee_zones: List[str]) -> List[CongestionHotspot]:
     """
-    Aggregates raw attendee location data into congestion hotspots 
-    based on static zone capacities.
+    Aggregates raw attendee location data into congestion hotspots.
+
+    This function takes a list of zone names (representing individual attendees)
+    and calculates the percentage of capacity for each zone based on predefined
+    maximums.
+
+    Args:
+        attendee_zones (List[str]): A list of zone names where attendees are located.
+
+    Returns:
+        List[CongestionHotspot]: A list of CongestionHotspot objects, sorted
+                                 from most to least congested.
     """
     # Max safe capacity per zone for the event layout
     zone_capacities = {
@@ -97,8 +145,29 @@ def aggregate_hotspots(attendee_zones: List[str]) -> List[CongestionHotspot]:
 @app.post("/api/telemetry", response_model=List[CongestionHotspot])
 async def ingest_telemetry(request: Request):
     """
-    Ingests binary telemetry data containing raw attendee coordinates,
-    decodes it, and returns aggregated zone congestion metrics.
+    Ingests binary telemetry data, processes it, and returns congestion metrics.
+
+    This is the main data ingestion endpoint. It expects a raw binary payload,
+    performs security checks, decodes the data, aggregates it, and returns
+    a JSON response.
+
+    Args:
+        request (Request): The incoming FastAPI request object.
+
+    Returns:
+        List[CongestionHotspot]: A list of congestion hotspot data.
+
+    Raises:
+        HTTPException:
+            - 422: If the payload is empty or exceeds the maximum allowed size.
+            - 500: For any other processing errors.
+
+    Data Security & Input Validation:
+        - The function reads the raw request body to handle binary data directly.
+        - It performs a critical input validation check on the payload size.
+          An empty payload or an excessively large one (here, > 1MB) is rejected
+          with a 422 error. This prevents denial-of-service attacks that might
+          exhaust server memory.
     """
     try:
         # Read the raw binary payload
