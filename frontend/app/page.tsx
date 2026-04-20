@@ -77,11 +77,17 @@ export default function StadiumDashboard() {
   }, []);
 
   const getZoneData = (zoneName: string) => {
-    return data.find((d) => d.zone === zoneName) || { zone: zoneName, capacity_percent: 0 };
+    let zoneObj = data.find((d) => d.zone === zoneName) || { zone: zoneName, capacity_percent: 0 };
+    // MOCK SUBMISSION BEHAVIOR: Force Zone D to 95% when autoPilot is ON
+    if (autoPilot && zoneName === "Zone D") {
+      zoneObj = { ...zoneObj, capacity_percent: 95 };
+    }
+    return zoneObj;
   };
 
   const getSafestZone = () => {
     if (!data.length) return "Zone A";
+    // We want a zone with capacity < 60 to be considered STABLE to route to
     return data.filter(d => ZONES.includes(d.zone)).reduce((prev, curr) => 
       (prev.capacity_percent < curr.capacity_percent) ? prev : curr
     ).zone;
@@ -110,7 +116,7 @@ export default function StadiumDashboard() {
         <div className="flex items-center gap-4 bg-black/60 border border-white/10 rounded-lg px-5 py-2 backdrop-blur-md cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setAutoPilot(!autoPilot)}>
            <span className="text-xs text-neutral-400 uppercase tracking-widest font-mono select-none">Auto-Pilot / AI Router</span>
            <button 
-             className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${autoPilot ? 'bg-cyan-500' : 'bg-neutral-800'}`}
+             className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${autoPilot ? 'bg-cyan-500 shadow-[0_0_15px_cyan]' : 'bg-neutral-800'}`}
            >
              <div className={`w-4 h-4 rounded-full bg-white absolute transition-all duration-300 ${autoPilot ? 'left-7 shadow-[0_0_10px_white]' : 'left-1'}`} />
            </button>
@@ -179,20 +185,31 @@ export default function StadiumDashboard() {
                 </div>
               </div>
 
-              {/* Active Rerouting Banner */}
-              <div className={`mt-4 h-12 rounded-lg border border-fuchsia-500/50 bg-fuchsia-950/40 flex items-center justify-between px-4 transition-all duration-500 overflow-hidden relative z-10 ${isRerouting ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none !h-0 !mt-0 !mb-0 !border-0'}`}>
-                 <div className="flex items-center gap-3">
-                   <div className="flex items-center text-fuchsia-400 font-black animate-pulse">
-                     <span className="animate-[bounce_1s_infinite_horizontal]">&gt;</span>
-                     <span className="inline-block animate-[bounce_1_1s_infinite_horizontal] ml-[-2px]">&gt;</span>
-                     <span className="inline-block animate-[bounce_1_2s_infinite_horizontal] ml-[-2px]">&gt;</span>
-                   </div>
-                   <span className="text-xs font-mono font-bold text-fuchsia-300 uppercase tracking-widest">
-                     Rerouting
+              {/* OVERHAULED Active Rerouting Banner */}
+              <div className={`mt-4 rounded-xl border-2 border-cyan-400 bg-cyan-950/60 shadow-[0_0_20px_rgba(34,211,238,0.5)] flex flex-col px-4 py-3 transition-all duration-500 overflow-hidden relative z-10 ${isRerouting ? 'opacity-100 translate-y-0 h-auto' : 'opacity-0 translate-y-2 pointer-events-none !h-0 !p-0 !mt-0 !mb-0 !border-0'}`}>
+                 <div className="flex items-center justify-between w-full mb-1">
+                   <span className="text-[10px] font-mono font-bold text-cyan-200 uppercase tracking-widest shadow-cyan-300">
+                     SYSTEM OVERRIDE
+                   </span>
+                   <span className="text-[10px] font-mono font-bold text-cyan-200">
+                     AUTO-PILOT ACTIVE
                    </span>
                  </div>
-                 <div className="text-[10px] px-2 py-1 bg-fuchsia-500/20 rounded text-fuchsia-200 font-mono font-bold">
-                   TO: {safestZone.toUpperCase()}
+                 
+                 <div className="flex items-center justify-between w-full mt-1 bg-black/40 rounded-lg p-2 border border-cyan-500/30">
+                    <span className="text-xs font-mono text-fuchsia-400 font-black line-through opacity-80 uppercase">{zone}</span>
+                    
+                    {/* BRIGHT NEON DIRECTIONAL ARROW */}
+                    <div className="flex items-center text-cyan-400 font-black text-xl drop-shadow-[0_0_8px_rgba(34,211,238,1)]">
+                       <span className="animate-[bounce_1s_infinite_horizontal]">---</span>
+                       <span className="animate-[bounce_1_1s_infinite_horizontal]">&gt;</span>
+                       <span className="inline-block animate-[bounce_1_2s_infinite_horizontal] font-sans text-2xl drop-shadow-[0_0_12px_cyan] ml-1">➔</span>
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                       <span className="text-xs font-mono text-cyan-300 uppercase tracking-wide">DIVERT TO</span>
+                       <span className="text-sm font-mono text-cyan-400 font-bold drop-shadow-[0_0_8px_cyan] uppercase bg-cyan-900/40 px-2 rounded">{safestZone}</span>
+                    </div>
                  </div>
               </div>
               
