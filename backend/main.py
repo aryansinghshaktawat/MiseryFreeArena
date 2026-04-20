@@ -15,7 +15,7 @@ app = FastAPI(
 # Configure CORS constraints for specific frontend origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # Allows all origins for the hackathon
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
