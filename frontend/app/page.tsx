@@ -48,14 +48,14 @@ export default function StadiumDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/telemetry", {
+        const response = await fetch("https://miseryfreearena.onrender.com/api/telemetry", {
           method: "POST",
           headers: {
             "Content-Type": "application/octet-stream"
           },
           body: new Uint8Array([0x00, 0x01]) // Mock binary payload for the backend
         });
-        
+
         if (response.ok) {
           const result: CongestionHotspot[] = await response.json();
           setData(result);
@@ -67,7 +67,7 @@ export default function StadiumDashboard() {
     };
 
     fetchData(); // Initial fetch
-    
+
     // Poll every 3 seconds
     const interval = setInterval(() => {
       fetchData();
@@ -92,7 +92,7 @@ export default function StadiumDashboard() {
             Real-Time Capacity Heatmap
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3 bg-[#0a0a0a] border border-white/10 rounded-full px-5 py-2.5 backdrop-blur-md">
           <div className={`w-2.5 h-2.5 rounded-full ${lastUpdate ? 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)] animate-pulse' : 'bg-neutral-600'}`}></div>
           <span className="font-mono text-xs text-neutral-300">
@@ -106,10 +106,10 @@ export default function StadiumDashboard() {
         {ZONES.map((zone) => {
           const zoneData = getZoneData(zone);
           const percent = zoneData.capacity_percent;
-          
+
           return (
-            <div 
-              key={zone} 
+            <div
+              key={zone}
               className={`
                 relative overflow-hidden rounded-2xl border backdrop-blur-xl p-6
                 transition-all duration-700 ease-in-out transform hover:-translate-y-1
@@ -128,7 +128,7 @@ export default function StadiumDashboard() {
                   <div className={`w-2 h-2 rounded-full ${getIndicatorColor(percent)}`}></div>
                 </div>
               </div>
-              
+
               {/* Data Content */}
               <div className="mt-8 mb-4 relative z-10">
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-2 text-white/90 uppercase">{zone}</h2>
@@ -139,40 +139,40 @@ export default function StadiumDashboard() {
                   <span className="text-xl text-neutral-500 font-medium mb-1.5">%</span>
                 </div>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="w-full bg-black/50 rounded-full h-2.5 mt-8 overflow-hidden border border-white/5 relative z-10">
-                <div 
+                <div
                   className={`h-full transition-all duration-1000 ease-out rounded-full ${getIndicatorColor(percent).split(' ')[0]}`}
                   style={{ width: `${Math.min(percent, 100)}%` }}
                 ></div>
               </div>
-              
+
               {/* Cyperpunk ambient decoration */}
               <div className="absolute -bottom-4 -right-4 opacity-[0.03] font-mono text-[140px] leading-none select-none pointer-events-none font-black text-white mix-blend-overlay">
                 {percent}
               </div>
-              
+
               {/* Circuit board corner lines */}
               <div className={`absolute bottom-0 right-0 w-16 h-16 pointer-events-none border-b-2 border-r-2 ${getCongestionTextClass(percent)} opacity-20 rounded-br-2xl mb-2 mr-2`}></div>
             </div>
           );
         })}
       </main>
-      
+
       {/* Legend & Footer */}
       <footer className="mt-16 text-center border-t border-neutral-800/50 pt-8 w-full max-w-6xl">
         <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-xs font-mono text-neutral-500 uppercase tracking-widest">
           <div className="flex items-center gap-2 bg-neutral-900/50 px-4 py-2 rounded-lg border border-neutral-800">
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div> 
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
             <span className="hidden sm:inline">Optimal</span> <span className="text-emerald-500/70">(0-49%)</span>
           </div>
           <div className="flex items-center gap-2 bg-neutral-900/50 px-4 py-2 rounded-lg border border-neutral-800">
-            <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div> 
+            <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
             <span className="hidden sm:inline">Elevated</span> <span className="text-amber-500/70">(50-79%)</span>
           </div>
           <div className="flex items-center gap-2 bg-neutral-900/50 px-4 py-2 rounded-lg border border-neutral-800">
-            <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div> 
+            <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
             <span className="hidden sm:inline">Critical</span> <span className="text-red-500/70">(80%+)</span>
           </div>
         </div>
